@@ -1,0 +1,21 @@
+/* User.css */
+
+/* Product Card Styling */
+.product-card {
+  border-radius: 12px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Footer Text Styling */
+.footer-text {
+  font-weight: 600;
+  color: #198754; /* Bootstrap green */
+  margin-bottom: 0.3rem;
+}

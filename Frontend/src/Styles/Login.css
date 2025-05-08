@@ -1,0 +1,23 @@
+/* Login.css */
+
+.login-wrapper {
+  height: 100vh;
+  background: linear-gradient(135deg, #f6f9fc, #e9eff5);
+  padding: 1rem;
+}
+
+.login-card {
+  max-width: 420px;
+  border-radius: 1rem;
+  background-color: #fff;
+}
+
+.login-card h3 {
+  font-weight: 600;
+  color: #333;
+}
+
+input::placeholder,
+select {
+  font-size: 0.9rem;
+}
