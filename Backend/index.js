@@ -1,46 +1,51 @@
 const express = require("express");
 const mysql = require("mysql2");
 const cors = require("cors");
-// const bodyParser = require("body-parser"); // bodyParser is built into modern Express
 
 const app = express();
-// Render sets the PORT environment variable. Fallback to 5000 for local dev.
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5000; // Render sets the PORT environment variable
 
 // Middleware
 app.use(cors());
-app.use(express.json()); // Use built-in Express middleware for parsing JSON
-app.use(express.urlencoded({ extended: true })); // For parsing application/x-www-form-urlencoded
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// MySQL Connection
+// MySQL Connection Pool
 // !!! WARNING: Hardcoding credentials is a security risk. !!!
-// !!! WARNING: The 'host' below is the INTERNAL host from your screenshot. !!!
-// !!! You likely need the EXTERNAL host from Sevalla after enabling "Public access". !!!
-const db = mysql.createConnection({
-  host: "asia-south1-001.proxy.kinsta.app", // <--- UPDATE THIS if you get an External Host from Sevalla
+// !!! Ensure host and port are the correct EXTERNAL details for your database accessible from Render. !!!
+const pool = mysql.createPool({
+  connectionLimit: 10, // Max number of connections in pool
+  host: "asia-south1-001.proxy.kinsta.app", // Your provided host
   user: "vole",
   password: "hC1_jP0-tH5-tF5=xW0+",
   database: "imperial-harlequin-cardinal",
-  port: 30008, // This is the standard MySQL port, confirm if Sevalla's external port is different
+  port: 30008, // Your provided port
+  waitForConnections: true, // Wait for a connection when all are in use
+  queueLimit: 0, // Unlimited queue when waiting for connections
+  connectTimeout: 10000 // 10 seconds to connect
 });
 
-// Connect to the database
-db.connect((err) => {
+// Optional: Test the pool connection at startup
+pool.getConnection((err, connection) => {
   if (err) {
-    console.error("Error connecting to MySQL:", err);
-    // In a real application, you might want to exit or have retry logic
-    // For Render, if the DB connection fails, the app might crash or become unhealthy.
+    console.error("Error connecting to MySQL pool:", err);
+    // More specific error handling can be added here if needed
+    // e.g., check err.code for 'ECONNREFUSED', 'ER_ACCESS_DENIED_ERROR', etc.
     return;
   }
-  console.log("Connected to MySQL database.");
+  if (connection) {
+    connection.release(); // Important to release the connection back to the pool
+    console.log("Successfully connected to MySQL pool.");
+  }
 });
 
-// API Routes
+// API Routes (all db.query calls are now pool.query)
+
 app.post("/signup", (req, res) => {
   const { name, email, password, role } = req.body;
   const query =
     "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)";
-  db.query(query, [name, email, password, role], (err, result) => {
+  pool.query(query, [name, email, password, role], (err, result) => {
     if (err) {
       console.error("Error signing up user:", err);
       return res.status(500).send("Error signing up user");
@@ -52,7 +57,7 @@ app.post("/signup", (req, res) => {
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
   const query = "SELECT * FROM users WHERE email = ? AND password = ?";
-  db.query(query, [email, password], (err, results) => {
+  pool.query(query, [email, password], (err, results) => {
     if (err) {
       console.error("Error logging in user:", err);
       return res.status(500).send("Error logging in user");
@@ -66,25 +71,23 @@ app.post("/login", (req, res) => {
   });
 });
 
-// Get all products
 app.get("/products", (req, res) => {
-  db.query("SELECT * FROM products", (err, results) => {
+  pool.query("SELECT * FROM products", (err, results) => {
     if (err) {
-      console.error("Error fetching products:", err);
+      console.error("Error fetching products:", err); // This is where ECONNRESET would have been caught
       return res.status(500).send("Error fetching products");
     }
     res.json(results);
   });
 });
 
-// Update a product
 app.put("/products/:id", (req, res) => {
   const { id } = req.params;
   const {
     product_name,
     slug,
     product_details,
-    produt_url, // Note: typo in original code, 'produt_url' should likely be 'product_url'
+    produt_url,
     product_type,
     status,
     brand,
@@ -99,13 +102,13 @@ app.put("/products/:id", (req, res) => {
     WHERE id = ?
   `;
 
-  db.query(
+  pool.query(
     query,
     [
       product_name,
       slug,
       product_details,
-      produt_url, // Consistent with body, but consider fixing typo
+      produt_url,
       product_type,
       status,
       brand,
@@ -126,12 +129,11 @@ app.put("/products/:id", (req, res) => {
   );
 });
 
-// Delete a product
 app.delete("/products/:id", (req, res) => {
   const { id } = req.params;
   const query = "DELETE FROM products WHERE id = ?";
 
-  db.query(query, [id], (err, result) => {
+  pool.query(query, [id], (err, result) => {
     if (err) {
       console.error("Error deleting product:", err);
       return res.status(500).send("Error deleting product");
@@ -143,7 +145,6 @@ app.delete("/products/:id", (req, res) => {
   });
 });
 
-// Change product status (active/inactive)
 app.patch("/products/:id/status", (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -152,9 +153,8 @@ app.patch("/products/:id/status", (req, res) => {
     return res.status(400).json({ message: "Status is required" });
   }
 
-  const query = "UPDATE products SET status = ? WHERE id = ?";
-
-  db.query(query, [status, id], (err, result) => {
+  const updateQuery = "UPDATE products SET status = ? WHERE id = ?";
+  pool.query(updateQuery, [status, id], (err, result) => {
     if (err) {
       console.error("Error updating product status:", err);
       return res.status(500).send("Error updating product status");
@@ -164,20 +164,17 @@ app.patch("/products/:id/status", (req, res) => {
         return res.status(404).json({ message: "Product not found or status unchanged" });
     }
 
-    // Fetch the updated product
     const fetchQuery = "SELECT * FROM products WHERE id = ?";
-    db.query(fetchQuery, [id], (fetchErr, results) => {
+    pool.query(fetchQuery, [id], (fetchErr, results) => {
       if (fetchErr) {
         console.error("Error fetching updated product:", fetchErr);
-        // Still send success for the update, but note the fetch error
-        return res.status(200).json({
+        return res.status(200).json({ // Send 200 as update was successful
           message: "Product status updated successfully, but failed to fetch updated product.",
         });
       }
       if (results.length === 0) {
-        return res.status(404).json({ message: "Product not found after update."})
+        return res.status(404).json({ message: "Product not found after update."});
       }
-
       res.json({
         message: "Product status updated successfully",
         product: results[0],
@@ -186,13 +183,12 @@ app.patch("/products/:id/status", (req, res) => {
   });
 });
 
-// POST a new product
 app.post("/products", (req, res) => {
   const {
     product_name,
     slug,
     product_details,
-    produt_url, // Note: typo in original code
+    produt_url,
     product_type,
     status,
     brand,
@@ -200,7 +196,6 @@ app.post("/products", (req, res) => {
     price,
   } = req.body;
 
-  // Basic validation (you might want more robust validation)
   if (!product_name || !price) {
     return res.status(400).json({ message: "Product name and price are required." });
   }
@@ -211,13 +206,13 @@ app.post("/products", (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-  db.query(
+  pool.query(
     query,
     [
       product_name,
       slug,
       product_details,
-      produt_url, // Consistent with body
+      produt_url,
       product_type,
       status,
       brand,
@@ -229,7 +224,6 @@ app.post("/products", (req, res) => {
         console.error("Error inserting product:", err);
         return res.status(500).send("Error inserting product");
       }
-
       const newProduct = {
         id: result.insertId,
         product_name,
@@ -242,7 +236,6 @@ app.post("/products", (req, res) => {
         stock_quantity,
         price,
       };
-
       res.status(201).json(newProduct);
     }
   );
