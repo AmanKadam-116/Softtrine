@@ -23,7 +23,7 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post("http://localhost:5000/login", credentials);
+      const res = await axios.post("https://softtrine.onrender.com/login", credentials);
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("role", res.data.role);
       localStorage.setItem("name", res.data.name);

@@ -24,7 +24,7 @@ const Signup = () => {
   const handleSignup = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post("http://localhost:5000/signup", formData);
+      const res = await axios.post("https://softtrine.onrender.com/signup", formData);
       alert(res.data.message || "Signup successful");
       navigate("/login");
     } catch (err) {

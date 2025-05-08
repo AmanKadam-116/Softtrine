@@ -24,7 +24,7 @@ const StoreComponent = ({ children }) => {
 
   useEffect(() => {
     axios
-      .get("http://localhost:5000/products")
+      .get("https://softtrine.onrender.com/products")
       .then((res) => {
         setProducts(res.data);
         setFilteredProducts(res.data); // Initialize filteredProducts with all products
@@ -63,7 +63,7 @@ const StoreComponent = ({ children }) => {
 
   const handleUpdateProduct = () => {
     axios
-      .put(`http://localhost:5000/products/${editId}`, formData)
+      .put(`https://softtrine.onrender.com/products/${editId}`, formData)
       .then(() => {
         setProducts((prev) =>
           prev.map((p) => (p.id === editId ? { ...p, ...formData } : p))
@@ -88,7 +88,7 @@ const StoreComponent = ({ children }) => {
   const handleOnChangeStatus = (product) => {
     const newStatus = product.status === "1" ? "0" : "1";
     axios
-      .patch(`http://localhost:5000/products/${product.id}/status`, {
+      .patch(`https://softtrine.onrender.com/products/${product.id}/status`, {
         status: newStatus,
       })
       .then(() => {
@@ -104,7 +104,7 @@ const StoreComponent = ({ children }) => {
   const handleOnDelete = (id) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       axios
-        .delete(`http://localhost:5000/products/${id}`)
+        .delete(`https://softtrine.onrender.com/products/${id}`)
         .then(() => {
           setProducts((prev) => prev.filter((p) => p.id !== id));
         })
@@ -114,7 +114,7 @@ const StoreComponent = ({ children }) => {
 
   const handleAddProduct = () => {
     axios
-      .post("http://localhost:5000/products", formData)
+      .post("https://softtrine.onrender.com/products", formData)
       .then((res) => {
         const newProduct = res.data;
         setProducts([...products, newProduct]);

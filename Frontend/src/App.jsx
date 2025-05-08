@@ -11,7 +11,7 @@ function App() {
 
   useEffect(() => {
     axios
-      .get("http://localhost:5000/products")
+      .get("https://softtrine.onrender.com/products")
       .then((res) => {
         setData(res.data);
       })

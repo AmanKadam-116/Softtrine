@@ -19,7 +19,7 @@ function User() {
   useEffect(() => {
     const fetchData = () => {
       axios
-        .get("http://localhost:5000/products")
+        .get("https://softtrine.onrender.com/products")
         .then((res) => {
           const activeProducts = res.data.filter(
             (product) => product.status === "1"
